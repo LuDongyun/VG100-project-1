@@ -1,0 +1,317 @@
+#include<Servo.h>
+Servo myservo;
+int pos = 0;
+int deckstate = 0;
+int Cleaving = 0;
+int Astate = 0;     //0 means A is not on the bridge
+int pulse = 0;
+int telecom = 0;
+int i = 0;
+int mode = 0;
+int modeban = 0;
+int Cstate = 0;
+int val;
+//z on the deck, x and y on both side of the bridge
+//motor zuo you shang xia
+const int zuo1 = 5 ;
+const int zuo2 = 6 ;
+//servomotor
+const int you1 = 9 ;
+const int you2 = 10 ;
+
+//functions
+void forward();
+void back();
+void fast();
+void slow();
+void fast_down();
+void slow_down();
+void get_y();
+void get_x();
+void get_z();
+void deckdown();
+void deckup();
+void shengban();
+void jiangban();
+
+//car boat boat
+const int TP = 2 ;
+const int EP = 3 ;
+const int QP = 4 ;
+const int WP = 7 ;
+const int AP = 8 ;
+const int XP = 11 ;
+
+float x = 50;
+float y = 50;
+float z = 30;
+
+//light green red
+const int green = 12 ;
+const int red = 13 ;
+
+void setup()
+{
+  pinMode(zuo1,OUTPUT);
+  pinMode(zuo2,OUTPUT);
+  pinMode(9,OUTPUT);
+  pinMode(you2,OUTPUT);
+  
+  myservo.attach(9);
+  Serial.begin(9600);
+  while (!Serial) {}
+  
+  
+  pinMode(TP,OUTPUT);
+  pinMode(EP,INPUT);
+  pinMode(QP,OUTPUT);
+  pinMode(WP,INPUT);
+  pinMode(AP,OUTPUT);
+  pinMode(XP,INPUT);
+
+  pinMode(green,OUTPUT);
+  pinMode(red,OUTPUT);
+  digitalWrite(red,LOW);
+  digitalWrite(green,HIGH);
+}
+
+void loop()
+{
+  if (deckstate == 0)
+  { 
+    mode = 0;
+    get_z ();
+  
+    
+    while(Serial.available())
+  {
+    delay(10);
+    val = Serial.read();
+  }
+    if ( Astate == 0 and z < 18 )
+    {
+      Serial.write(1);//on
+      Astate = 1;
+    }
+    if ( val == 1)
+    {
+      get_z();
+      Astate = 2;
+      if (z < 15)
+      {
+        Astate = 0;
+        Serial.write(2);//left
+        val = 0;
+      }
+    }
+    if (val == 2 and Astate == 1)
+    {
+      Astate = 0;  //left from another side
+    }
+    get_x();
+    get_y();
+    
+    
+    while ((x < 30 or y < 30 or mode == 1) and deckstate == 0 )
+    { 
+      mode = 1;
+      if (x < 30)
+    {
+      Cstate = 1;
+      }
+     if (y < 30)
+     {
+      Cstate = 2;
+      }
+      digitalWrite(red,HIGH);
+      digitalWrite(green,LOW);
+      while ( Astate == 1)
+      {
+        val = 0;
+        if(modeban == 0)
+        {
+          jiangban();
+          modeban = 1;
+        }
+       
+    while(Serial.available())
+    {     
+      delay(10);
+      val = Serial.read();
+    }
+    if (val == 2)
+    {
+      Astate = 0;   
+    }
+      }
+      
+    if ( Astate == 0)
+    {
+    if (modeban == 0)
+    {
+      jiangban();
+      modeban = 1;
+      delay(1000); 
+    }
+    deckup();
+    deckstate = 1;
+    
+    }
+    while (Astate == 2)
+    {
+      get_z();
+      if (z < 15)
+      {
+        Astate = 0;
+        Serial.write(2);
+        jiangban();
+        delay(1000);
+        deckup();
+        deckstate = 1;
+      }
+    }
+    }
+  }
+  while (deckstate == 1)
+  {
+    x =90;
+    y =90;
+    if (Cstate == 1)  
+    {
+      get_y();
+      }
+     if (Cstate == 2)
+    {
+      get_x();
+    }
+    if (x < 30 or y < 30  )
+    {
+      deckdown();
+      delay(1000);
+      shengban();
+      modeban = 0;
+      deckstate = 0;
+      digitalWrite(red,LOW);
+      digitalWrite(green,HIGH);
+    }
+    
+  }
+}
+
+void forward()//motor state
+{
+  digitalWrite(zuo1,HIGH);
+  digitalWrite(zuo2,LOW);
+  delay(500);
+  digitalWrite(zuo1,LOW);
+  digitalWrite(zuo2,LOW);
+  }
+void back()//motor state
+{
+  digitalWrite(zuo1,LOW);
+  digitalWrite(zuo2,HIGH);
+  delay(500);
+  digitalWrite(zuo1,LOW);
+  digitalWrite(zuo2,LOW);
+}
+void fast()//motor state
+{
+  for(i=0;i <= 255 ;i+=5)
+  {
+    analogWrite(zuo1,i);
+    analogWrite(zuo2,0);
+    delay(50); 
+  }
+}
+void slow()//motor state
+{
+  for(i=255;i>=0;i-=5)
+  {
+    analogWrite(zuo1,i);
+    analogWrite(zuo2,0);
+    delay(50);
+  }
+}
+void fast_down()//motor state
+{
+    for(i=0;i<=255;i+=5)
+    {
+    analogWrite(zuo1,0);
+    analogWrite(zuo2,i);
+    delay(50); 
+    }
+}
+void slow_down()//motor state
+{
+    for(i=255;i>=0;i-=5)
+    {
+    analogWrite(zuo1,0);
+    analogWrite(zuo2,i);
+    delay(50);
+    }
+}
+void shengban()//lift up the guard for B
+{
+    for (pos = 0; pos <= 60 ; pos += 1)
+  {
+    myservo.write(pos);
+    delay(15);
+  }
+  /*digitalWrite(you1,HIGH);
+    digitalWrite(you2,LOW);
+    delay(1000);
+    digitalWrite(you1,LOW);
+    digitalWrite(you2,LOW);*/
+}
+void jiangban()//fall down the guard for B
+{
+    for (pos = 60; pos >= 1 ; pos -= 1)
+  {
+    myservo.write(pos);
+    delay(15);
+  }
+  /*digitalWrite(you1,LOW);
+    digitalWrite(you2,HIGH);
+    delay(1000);
+    digitalWrite(you1,LOW);
+    digitalWrite(you2,LOW);*/
+}
+void get_y()
+{
+  digitalWrite(QP,LOW);
+  delayMicroseconds(2);
+  digitalWrite(QP,HIGH);
+  delayMicroseconds(10);
+  digitalWrite(QP,LOW);
+  y = pulseIn(WP,HIGH)/58.00;
+}
+void get_x()
+{
+  digitalWrite(TP,LOW);
+  delayMicroseconds(2);
+  digitalWrite(TP,HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TP,LOW);
+  x = pulseIn(EP,HIGH)/58.00;
+}
+void get_z()
+{
+  digitalWrite(AP,LOW);
+  delayMicroseconds(2);
+  digitalWrite(AP,HIGH);
+  delayMicroseconds(10);
+  digitalWrite(AP,LOW);
+  z = pulseIn(XP,HIGH)/58.00;
+}
+void deckup()//lift up the bridge
+{
+  fast();
+  forward();
+  slow();
+}
+void deckdown()//fall down the bridge
+{
+  fast_down();
+  back();
+  slow_down();
+}
